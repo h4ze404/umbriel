@@ -1,0 +1,317 @@
+# ==============================================================================
+# Umbriel: конфиг, перенесённый из настроек CachyOS Niri
+# Источник: https://github.com/Ly-sec/cachyos-niri-settings
+# Цель:     https://github.com/noctalia-dev/umbriel
+#
+# Установка: положите файл в ~/.config/umbriel/config.toml
+# Проверка:  umbriel config validate
+# Справка:   https://docs.noctalia.dev/umbriel/
+#
+# NB: [keybinds] полностью заменяет встроенные бинды Umbriel,
+#     поэтому все нужные бинды перечислены здесь явно.
+# ==============================================================================
+
+# ────────────── Общее (niri: misc.kdl, autostart.kdl) ──────────────
+[general]
+# spawn-sh-at-startup "polkit..." + "qs -c noctalia-shell"
+# В Noctalia v5 демон называется `noctalia` (qs больше не используется)
+autostart = [
+  "/usr/lib/polkit-kde-authentication-agent-1", # Polkit
+  "noctalia",                                   # оболочка Noctalia
+]
+# niri debug: honor-xdg-activation-with-invalid-serial
+# (нужно для действий уведомлений и активации окон из Noctalia)
+focus_on_activate = true
+# niri hotkey-overlay { skip-at-startup }
+show_cheatsheet = false
+
+# ────────────── Переменные окружения (niri: misc.kdl) ──────────────
+# XDG_SESSION_TYPE и XDG_CURRENT_DESKTOP выставляет сам Umbriel — их задать нельзя.
+[environment]
+ELECTRON_OZONE_PLATFORM_HINT = "auto"
+QT_QPA_PLATFORM = "wayland"
+QT_WAYLAND_DISABLE_WINDOWDECORATION = "1"
+QT_QPA_PLATFORMTHEME = "gtk3"
+
+# ────────────── Внешний вид (niri: misc.kdl, rules.kdl) ──────────────
+[appearance]
+prefer_no_csd = true
+# rules.kdl: geometry-corner-radius 20
+corner_radius = 20
+# rules.kdl: clip-to-geometry true — Umbriel всегда обрезает контент окна
+# по его геометрии, отдельная настройка не нужна.
+
+# Блюр окон делаем как рекомендует Noctalia для Umbriel:
+# обои рисует оболочка на background-слое, и оптимизированный блюр их видит.
+[appearance.blur]
+enabled = true
+optimized = true
+passes = 2
+radius = 3
+noise = 0.02
+brightness = 0.9
+contrast = 0.9
+saturation = 1.1
+
+# ────────────── Выходы (мониторы пользователя) ──────────────
+# Имена/режимы можно проверить командой `umbriel outputs`.
+# Если режим @100 не в списке EDID, Umbriel попробует применить его как custom mode;
+# не получится — откатится на preferred-режим с предупреждением в логе.
+[output.HDMI-A-1] # левый монитор
+mode = "1920x1080@100"
+scale = 1.0
+position = [0, 0]
+focus_at_startup = true
+
+[output.HDMI-A-2] # правый монитор
+mode = "1920x1080@75"
+scale = 1.0
+position = [1920, 0]
+
+# ────────────── Ввод (niri: input.kdl) ──────────────
+[input.keyboard]
+# два языка: us + ru, переключение — Alt+Shift (XKB grp toggle)
+layout = "us,ru"
+options = "grp:alt_shift_toggle"
+numlock_toggle = true # NumLock на старте
+# NB: бинды вида Mod+T работают и в русской раскладке — Umbriel ищет
+# тот же физический ключ по ASCII-fallback в другой раскладке.
+# Переключение в рантайме: `umbriel msg keyboard-layout-next` (бинд ниже).
+
+[input.touchpad]
+tap = true # тап-клик
+natural_scroll = true # естественная (macOS-стиль) прокрутка
+
+# CachyOS: focus-follows-mouse
+[input.focus]
+follows_mouse = true
+
+# Аппаратный (плановый) курсор отключён — рисуется программный курсор.
+# Помогает при мерцании/исчезании курсора, немного дороже по GPU.
+# NB: когда программный курсор поверх окна, direct scanout на этом
+# кадре не включается (состояние видно в `umbriel outputs`).
+[input.cursor]
+hardware_cursor = false
+
+# CachyOS: workspace-auto-back-and-forth прямого аналога не имеет,
+# "вернуться на предыдущий воркспейс" повешено на Mod+Tab (см. keybinds).
+
+# ────────────── Вёрстка (niri: layout.kdl) ──────────────
+[layout]
+gap = 16 # отступы между окнами
+# preset-column-widths: 1/3, 1/2, 2/3
+extent_presets = [0.33333, 0.5, 0.66667]
+
+[layout.scrolling]
+# начальную ширину колонки выбирает приложение (как в niri по умолчанию)
+center_focused = "never" # не центрировать колонку в фокусе
+
+# niri: struts {} — нулевые страты совпадают со значениями по умолчанию.
+# [layout.struts]
+# left = 0
+# right = 0
+# top = 0
+# bottom = 0
+
+# niri: background-color "transparent" — в Umbriel не нужен: обои Noctalia
+# рисуются на background-слое, и Umbriel всегда корректно работает с ними.
+# Аналог layer-rule `place-within-backdrop` из niri тоже не требуется.
+
+# ────────────── Анимации (niri: cfg/animation.kdl) ──────────────
+[animation]
+enabled = true
+
+[animation.beziers]
+easeOutQuad = [0.25, 0.46, 0.94, 0.94]   # niri: "ease-out-quad"
+easeOutCubic = [0.215, 0.61, 0.355, 1.0] # niri: "ease-out-cubic"
+
+# workspace-switch: spring damping-ratio=1.0 stiffness=1000
+[animation.workspaces]
+curve = "spring:1,1000"
+
+# window-open: duration-ms 200, "ease-out-quad"
+[animation.windows_in]
+duration_ms = 200
+curve = "easeOutQuad"
+
+# window-close: duration-ms 200, "ease-out-cubic"
+[animation.windows_out]
+duration_ms = 200
+curve = "easeOutCubic"
+
+# window-movement: spring 1.0/800
+# (horizontal-view-movement 800→900 в Umbriel объединён с этим событием)
+[animation.windows_move]
+curve = "spring:1,800"
+
+# window-resize: spring 1.0/1000
+[animation.windows_resize]
+curve = "spring:1,1000"
+
+# overview-open-close: spring 1.0/900
+[animation.overview]
+curve = "spring:1,900"
+workspace_curve = "spring:1,1000"
+
+# config-notification-open-close и screenshot-ui-open в Umbriel нет:
+# тосты и скриншоты рисует сама оболочка Noctalia.
+
+# ────────────── Горячий угол (аналог overview из niri) ──────────────
+[hot_corners.top_left]
+enabled = true
+delay_ms = 500
+action = "overview-open"
+
+# ────────────── Бинды (niri: cfg/keybinds.kdl) ──────────────
+[keybinds]
+
+# ─── горячая клавиша-шпаргалка / аварийный выход из ингибитора ───
+"Mod+Shift+Escape" = { action = "cheatsheet-toggle", repeat = false } # было show-hotkey-overlay
+"Mod+Escape" = { action = "shortcuts-inhibit-toggle", allow_when_inhibited = true, repeat = false }
+
+# ─── Приложения ───
+"Mod+Return" = { action = "spawn:alacritty", repeat = false }
+"Mod+Ctrl+Return" = { action = "spawn:noctalia msg panel-toggle launcher", repeat = false }
+"Mod+B" = { action = "spawn:google-chrome-stable", repeat = false }
+"Mod+E" = { action = "spawn:nautilus", repeat = false } # файловый менеджер
+"Mod+Alt+L" = { action = "spawn:noctalia msg session lock", repeat = false } # локскрин
+
+# ─── Аудио ───
+"XF86AudioRaiseVolume" = { action = "spawn:noctalia msg volume-up", allow_when_locked = true }
+"XF86AudioLowerVolume" = { action = "spawn:noctalia msg volume-down", allow_when_locked = true }
+"XF86AudioMute" = { action = "spawn:noctalia msg volume-mute", allow_when_locked = true, repeat = false }
+"XF86AudioMicMute" = { action = "spawn:noctalia msg mic-mute", allow_when_locked = true, repeat = false }
+
+# Дополнительно (в niri-конфиге CachyOS их не было, раскомментируйте при желании):
+# "XF86MonBrightnessUp" = { action = "spawn:noctalia msg brightness-up", allow_when_locked = true }
+# "XF86MonBrightnessDown" = { action = "spawn:noctalia msg brightness-down", allow_when_locked = true }
+# "XF86AudioPlay" = { action = "spawn:noctalia msg media toggle", allow_when_locked = true, repeat = false }
+# "XF86AudioNext" = { action = "spawn:noctalia msg media next", allow_when_locked = true }
+# "XF86AudioPrev" = { action = "spawn:noctalia msg media previous", allow_when_locked = true }
+
+# ─── Фокус и перемещение окон ───
+"Mod+Q" = { action = "window-close", repeat = false }
+
+"Mod+Left" = "window-focus-left"
+"Mod+H" = "window-focus-left"
+"Mod+Right" = "window-focus-right"
+"Mod+L" = "window-focus-right"
+"Mod+Up" = "window-focus-up"
+"Mod+K" = "window-focus-up"
+"Mod+Down" = "window-focus-down"
+"Mod+J" = "window-focus-down"
+
+"Mod+Ctrl+Left" = "column-move-left"
+"Mod+Ctrl+H" = "column-move-left"
+"Mod+Ctrl+Right" = "column-move-right"
+"Mod+Ctrl+L" = "column-move-right"
+"Mod+Ctrl+Up" = "window-move-up"
+"Mod+Ctrl+K" = "window-move-up"
+"Mod+Ctrl+Down" = "window-move-down"
+"Mod+Ctrl+J" = "window-move-down"
+
+"Mod+Home" = "column-focus-first"
+"Mod+End" = "column-focus-last"
+"Mod+Ctrl+Home" = "column-move-to-first"
+"Mod+Ctrl+End" = "column-move-to-last"
+
+"Mod+Shift+Left" = "output-focus-left"
+"Mod+Shift+Right" = "output-focus-right"
+"Mod+Shift+Up" = "output-focus-up"
+"Mod+Shift+Down" = "output-focus-down"
+
+"Mod+Shift+Ctrl+Left" = "column-move-to-output-left"
+"Mod+Shift+Ctrl+Right" = "column-move-to-output-right"
+"Mod+Shift+Ctrl+Up" = "column-move-to-output-up"
+"Mod+Shift+Ctrl+Down" = "column-move-to-output-down"
+
+# ─── Колёсико мыши ───
+"Mod+WheelDown" = { action = "workspace-next", cooldown_ms = 150 }
+"Mod+WheelUp" = { action = "workspace-previous", cooldown_ms = 150 }
+"Mod+Ctrl+WheelDown" = "column-move-to-workspace-next"
+"Mod+Ctrl+WheelUp" = "column-move-to-workspace-previous"
+
+"Mod+WheelRight" = "window-focus-right"
+"Mod+WheelLeft" = "window-focus-left"
+"Mod+Ctrl+WheelRight" = "column-move-right"
+"Mod+Ctrl+WheelLeft" = "column-move-left"
+
+"Mod+Shift+WheelDown" = "window-focus-right"
+"Mod+Shift+WheelUp" = "window-focus-left"
+"Mod+Ctrl+Shift+WheelDown" = "column-move-right"
+"Mod+Ctrl+Shift+WheelUp" = "column-move-left"
+
+# ─── Воркспейсы ───
+"Mod+1" = "workspace-switch:1"
+"Mod+2" = "workspace-switch:2"
+"Mod+3" = "workspace-switch:3"
+"Mod+4" = "workspace-switch:4"
+"Mod+5" = "workspace-switch:5"
+"Mod+6" = "workspace-switch:6"
+"Mod+7" = "workspace-switch:7"
+"Mod+8" = "workspace-switch:8"
+"Mod+9" = "workspace-switch:9"
+
+"Mod+Ctrl+1" = "column-move-to-workspace:1"
+"Mod+Ctrl+2" = "column-move-to-workspace:2"
+"Mod+Ctrl+3" = "column-move-to-workspace:3"
+"Mod+Ctrl+4" = "column-move-to-workspace:4"
+"Mod+Ctrl+5" = "column-move-to-workspace:5"
+"Mod+Ctrl+6" = "column-move-to-workspace:6"
+"Mod+Ctrl+7" = "column-move-to-workspace:7"
+"Mod+Ctrl+8" = "column-move-to-workspace:8"
+"Mod+Ctrl+9" = "column-move-to-workspace:9"
+
+"Mod+Tab" = { action = "workspace-focus-last", repeat = false }
+
+# ─── Управление вёрсткой ───
+# было expand-column-to-available-width
+"Mod+Ctrl+F" = { action = "window-toggle-maximize", repeat = false }
+"Mod+C" = { action = "column-center", repeat = false } # было center-column
+# center-visible-columns (Mod+Ctrl+C) в Umbriel эквивалента не имеет.
+
+"Mod+Minus" = "window-modify-primary-extent:-0.1"     # set-column-width "-10%"
+"Mod+Equal" = "window-modify-primary-extent:0.1"      # set-column-width "+10%"
+"Mod+Shift+Minus" = "window-modify-secondary-extent:-0.1" # set-window-height "-10%"
+"Mod+Shift+Equal" = "window-modify-secondary-extent:0.1"  # set-window-height "+10%"
+
+# ─── Режимы окон ───
+"Mod+T" = { action = "window-toggle-floating", repeat = false }
+"Mod+F" = { action = "window-toggle-fullscreen", repeat = false }
+"Mod+W" = { action = "column-toggle-tabbed", repeat = false } # вкладки колонки
+
+# ─── Скриншоты (через Noctalia) ───
+"Ctrl+Shift+1" = { action = "spawn:noctalia msg screenshot-region", repeat = false }
+"Ctrl+Shift+2" = { action = "spawn:noctalia msg screenshot-fullscreen", repeat = false }
+"Ctrl+Shift+3" = { action = "spawn:noctalia msg screenshot-window", repeat = false }
+
+# ─── Раскладка ---
+"Mod+Space" = "keyboard-layout-next" # ручное переключение us↔ru (обычно хватает Alt+Shift)
+
+# ─── Выход / питание ───
+"Ctrl+Alt+Delete" = { action = "session-quit", repeat = false } # запрос подтверждения в диалоге
+"Mod+Shift+P" = { action = "dpms-off", repeat = false }         # погасить мониторы
+"Mod+O" = { action = "overview-toggle", repeat = false }        # oбзор воркспейсов
+
+# ────────────── Правила окон (niri: cfg/rules.kdl) ──────────────
+[[window_rule]]
+# блюр всех окон поверх кэшированного блюра обоев
+blur = true
+blur_optimized = true
+
+[[window_rule]]
+match.app_id = "^dev.noctalia.Noctalia$"
+default_floating = true
+default_floating_size_px = { width = 1020, height = 900 }
+
+# ────────────── Layer-правила (блюр поверхностей Noctalia) ──────────────
+[[layer_rule]]
+match.namespace = "^noctalia-(bar-[^\"]+|notification|dock|panel|attached-panel|osd|desktop-widget-[^\"]*)$"
+blur = true
+blur_ignore_alpha = 0.5
+blur_popups = true
+
+# Панели/док/уведомления/OSD открываются поверх окон — блюрим живой контент за ними.
+[[layer_rule]]
+match.namespace = "^noctalia-(notification|dock|panel|attached-panel|osd)$"
+blur_optimized = false
