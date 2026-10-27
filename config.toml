@@ -172,8 +172,8 @@ action = "overview-open"
 # ─── Приложения ───
 "Mod+Return" = { action = "spawn:alacritty", repeat = false }
 "Mod+Ctrl+Return" = { action = "spawn:noctalia msg panel-toggle launcher", repeat = false }
-"Mod+B" = { action = "spawn:google-chrome-stable", repeat = false }
-"Mod+E" = { action = "spawn:nautilus", repeat = false } # файловый менеджер
+"Mod+B" = { action = "spawn:google-chrome", repeat = false }
+"Mod+E" = { action = "spawn:dolphin", repeat = false } # файловый менеджер (KDE, тема Breeze Dark)
 "Mod+Alt+L" = { action = "spawn:noctalia msg session lock", repeat = false } # локскрин
 
 # ─── Аудио ───
