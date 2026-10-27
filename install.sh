@@ -6,12 +6,14 @@
 #
 # 1. Ставит пакеты из официальных репозиториев (pacman)
 # 2. Ставит AUR-помощник yay (запасной — paru)
-# 3. Ставит из AUR: umbriel-git, xdg-desktop-portal-umbriel-git,
-#    noctalia-greeter-git (вход через greetd), google-chrome-stable
-# 4. Ставит Throne (прокси-клиент) официальным инсталлером проекта
-# 5. Кладёт config.toml в ~/.config/umbriel/ (старый бэкапит)
+# 3. Кладёт config.toml в ~/.config/umbriel/ (старый бэкапит)      ← ДО AUR,
+#    чтобы конфиг доезжал даже если сборка AUR падает
+# 4. Ставит из AUR: umbriel-git, xdg-desktop-portal-umbriel-git,
+#    noctalia-greeter-git (вход через greetd), google-chrome
+# 5. Ставит Throne (прокси-клиент) официальным инсталлером проекта
 # 6. Проверяет конфиг: umbriel config validate
-# 7. Настраивает greetd + noctalia-greeter и включает его в systemd
+# 7. Настраивает greetd + noctalia-greeter (доставит его, если пропал)
+#    и включает greeter в systemd
 #
 # Запуск из папки umbriel-config, НЕ под root (sudo спросится сам):
 #   ./install.sh
@@ -49,7 +51,8 @@ REPO_PKGS=(
     noctalia                # оболочка Noctalia (официальный пакет в [extra])
     polkit-kde-agent        # polkit-агент для запросов (пароли от sudo и т.п.)
     greetd                  # менеджер входа
-    alacritty nautilus      # приложения из биндов (браузер и Umbriel — из AUR, см. ниже)
+    alacritty dolphin breeze breeze-icons  # терминал, файл-менеджер (Mod+E) и его тема Breeze Dark
+    fastfetch               # сводка системы в терминале (минимальный конфиг, см. шаг 3)
     xdg-desktop-portal xdg-desktop-portal-gtk xdg-user-dirs
 )
 for pkg in "${REPO_PKGS[@]}"; do
@@ -103,8 +106,67 @@ else
     ok "найден AUR-помощник: ${AUR_HELPER}"
 fi
 
-# ─────────────────────── 3. Пакеты из AUR ───────────────────────
-info "Шаг 3/7: пакеты из AUR"
+# ─────────────────────── 3. Конфиг Umbriel (раньше AUR!) ───────────────────────
+info "Шаг 3/7: конфиг Umbriel"
+CONF_DIR="${HOME}/.config/umbriel"
+mkdir -p "${CONF_DIR}"
+if [[ -f "${CONF_DIR}/config.toml" ]]; then
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    cp "${CONF_DIR}/config.toml" "${CONF_DIR}/config.toml.bak-${stamp}"
+    ok "старый конфиг сохранён как config.toml.bak-${stamp}"
+fi
+install -Dm644 "${CONFIG_SRC}" "${CONF_DIR}/config.toml"
+# контрольная проверка, что файл реально доехал — без этого дальше нет смысла
+[[ -f "${CONF_DIR}/config.toml" ]] || die "конфиг не записался в ${CONF_DIR}/config.toml — разберись с правами"
+ok "конфиг записан: ${CONF_DIR}/config.toml"
+
+# Dolphin: тема Breeze Dark по умолчанию (схема цветов + иконки + стиль виджетов).
+# Файлы настроек KDE-приложений (dolphin читает их и без всего Plasma).
+DOLPHIN_CFG="${HOME}/.config/kdeglobals"
+if [[ -f "${DOLPHIN_CFG}" ]]; then
+    cp "${DOLPHIN_CFG}" "${DOLPHIN_CFG}.bak-$(date +%Y%m%d-%H%M%S)"
+    ok "старый kdeglobals сохранён"
+fi
+# BreezeDark.colors поставляется пакетом breeze (ставится в шаге 1)
+cat > "${DOLPHIN_CFG}" <<'EOF'
+[Icons]
+Theme=breeze-dark
+
+[KDE]
+ColorScheme=BreezeDark
+widgetStyle=breeze
+LookAndFeelPackage=org.kde.breezedark.desktop
+EOF
+ok "тема Dolphin Breeze Dark: ${DOLPHIN_CFG}"
+
+DOLPHINRC="${HOME}/.config/dolphinrc"
+cat > "${DOLPHINRC}" <<'EOF'
+[General]
+TerminalEmulator=alacritty,-e
+OpenExternallyInDefaultBrowser=true
+ShowFullPathInTitlebar=true
+EOF
+ok "dolphinrc записан (терминал alacritty, полный путь в заголовке)"
+
+# Fastfetch: минимальный конфиг — без лого, только 6 строк текста.
+FASTFETCH_CFG="${HOME}/.config/fastfetch/config.jsonc"
+mkdir -p "$(dirname -- "${FASTFETCH_CFG}")"
+if [[ -f "${FASTFETCH_CFG}" ]]; then
+    cp "${FASTFETCH_CFG}" "${FASTFETCH_CFG}.bak-$(date +%Y%m%d-%H%M%S)"
+    ok "старый конфиг fastfetch сохранён"
+fi
+cat > "${FASTFETCH_CFG}" <<'EOF'
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": { "type": "none" },
+  "display": { "separator": ": " },
+  "modules": ["os", "kernel", "wm", "terminal", "cpu", "memory"]
+}
+EOF
+ok "fastfetch: минимальный конфиг записан (${FASTFETCH_CFG})"
+
+# ─────────────────────── 4. Пакеты из AUR ───────────────────────
+info "Шаг 4/7: пакеты из AUR"
 if [[ "${SKIP_AUR:-0}" == "1" ]]; then
     warn "SKIP_AUR=1 — установка из AUR пропущена"
 else
@@ -112,21 +174,27 @@ else
         umbriel-git                     # композитор (мейнтейнер: noctalia-dev)
         xdg-desktop-portal-umbriel-git  # портал Umbriel: скриншоты/шеринг экрана
         noctalia-greeter-git            # экран входа greetd в стиле Noctalia
-        google-chrome-stable            # браузер (Mod+B)
+        google-chrome                   # браузер (Mod+B; google-chrome-stable из AUR удалён)
     )
+    AUR_FAILED=()
     for pkg in "${AUR_PKGS[@]}"; do
         if pacman -Qi "$pkg" >/dev/null 2>&1; then
             ok "$pkg — уже установлен"
         elif "${AUR_HELPER}" -S --needed --noconfirm "$pkg"; then
             ok "$pkg — установлен"
         else
-            die "Не удалось поставить '$pkg' из AUR"
+            warn "не удалось поставить '$pkg' из AUR — перезапусти ./install.sh позже"
+            AUR_FAILED+=("$pkg")
         fi
     done
+    if [[ "${#AUR_FAILED[@]}" -gt 0 ]]; then
+        warn "не доехали: ${AUR_FAILED[*]}. Композитор/браузер может не работать," \
+            "конфиг и greeter при этом установлены. Повторный запуск докатит."
+    fi
 fi
 
-# ─────────────────────── 4. Throne (прокси-клиент) ───────────────────────
-info "Шаг 4/7: Throne"
+# ─────────────────────── 5. Throne (прокси-клиент) ───────────────────────
+info "Шаг 5/7: Throne"
 THRONE_URL="https://raw.githubusercontent.com/throneproj/Throne/dev/script/install_linux.py"
 if [[ "${SKIP_THRONE:-0}" == "1" ]]; then
     warn "SKIP_THRONE=1 — установка Throne пропущена"
@@ -141,25 +209,14 @@ else
     fi
 fi
 
-# ─────────────────────── 5. Конфиг Umbriel ───────────────────────
-info "Шаг 5/7: конфиг Umbriel"
-CONF_DIR="${HOME}/.config/umbriel"
-mkdir -p "${CONF_DIR}"
-if [[ -f "${CONF_DIR}/config.toml" ]]; then
-    stamp="$(date +%Y%m%d-%H%M%S)"
-    cp "${CONF_DIR}/config.toml" "${CONF_DIR}/config.toml.bak-${stamp}"
-    ok "старый конфиг сохранён как config.toml.bak-${stamp}"
-fi
-install -Dm644 "${CONFIG_SRC}" "${CONF_DIR}/config.toml"
-ok "конфиг записан: ${CONF_DIR}/config.toml"
-
 # ─────────────────────── 6. Валидация конфига ───────────────────────
 info "Шаг 6/7: проверка конфига"
 if command -v umbriel >/dev/null 2>&1; then
     if umbriel config validate; then
         ok "umbriel config validate — ошибок нет"
     else
-        die "umbriel config validate нашёл проблемы (диагностика выше: файл/строка/колонка)"
+        warn "umbriel config validate нашёл проблемы (диагностика выше: файл/строка/колонка)"
+        warn "исправь конфиг — но greeter и greetd всё равно настроим сейчас"
     fi
 else
     warn "umbriel не найден в PATH — проверка пропущена (поставится после перезапуска shell)"
@@ -171,6 +228,15 @@ if [[ "${SKIP_GREETER:-0}" == "1" ]]; then
     warn "SKIP_GREETER=1 — greetd не настроен"
     printf '  Вход в сессию вручную из TTY:  %s\n' "$(bold start-umbriel)"
 else
+    # Greeter обязан стоять — если не доехал в шаге 4 (например, AUR-сборка упала),
+    # доставляем прямо здесь, прежде чем писать конфиг greetd.
+    if ! pacman -Qi noctalia-greeter-git >/dev/null 2>&1 && ! pacman -Qi noctalia-greeter >/dev/null 2>&1; then
+        info "noctalia-greeter не установлен — доставляю"
+        "${AUR_HELPER}" -S --needed --noconfirm noctalia-greeter-git \
+            || die "не удалось поставить noctalia-greeter-git. Запусти ./install.sh ещё раз" \
+                   "или поставь вручную: ${AUR_HELPER} -S noctalia-greeter-git"
+        ok "noctalia-greeter-git установлен"
+    fi
     if pacman -Qi noctalia-greeter-git >/dev/null 2>&1 || pacman -Qi noctalia-greeter >/dev/null 2>&1; then
         GREETER_CMD="noctalia-greeter"
     else
